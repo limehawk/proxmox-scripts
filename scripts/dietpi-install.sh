@@ -44,10 +44,24 @@ qm set "$ID" --scsi0 "$qm_disk_param" || { echo "Error attaching SCSI disk"; exi
 qm set "$ID" --boot order=scsi0 || { echo "Error setting boot order"; exit 1; }
 qm set "$ID" --scsihw virtio-scsi-pci || { echo "Error setting SCSI hardware"; exit 1; }
 qm set "$ID" --name 'dietpi' >/dev/null
-qm set "$ID" --description '### [DietPi Website](https://dietpi.com/)
-### [DietPi Docs](https://dietpi.com/docs/)  
-### [DietPi Forum](https://dietpi.com/forum/)
-### [DietPi Blog](https://dietpi.com/blog/)' >/dev/null
+qm set "$ID" --description '
+## DietPi VM - Managed by Limehawk
+
+**Quick Links:**
+- [DietPi Website](https://dietpi.com/)
+- [Documentation](https://dietpi.com/docs/)
+- [Community Forum](https://dietpi.com/forum/)
+- [Latest News](https://dietpi.com/blog/)
+
+**Provided by [Limehawk](https://limehawk.io):**
+- 🚀 _Fast and Reliable VM Solutions_
+- 🛡️ _Enhanced Security Features_
+- 📊 _Performance Optimized_
+
+---
+
+_This VM is powered by **Limehawk**. For more information and support, visit our [website](https://limehawk.io)._
+' >/dev/null
 
 # Tell user the virtual machine is created  
 echo "VM $ID Created."
