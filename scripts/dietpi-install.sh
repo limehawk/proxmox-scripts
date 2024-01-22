@@ -45,22 +45,28 @@ qm set "$ID" --boot order=scsi0 || { echo "Error setting boot order"; exit 1; }
 qm set "$ID" --scsihw virtio-scsi-pci || { echo "Error setting SCSI hardware"; exit 1; }
 qm set "$ID" --name 'dietpi' >/dev/null
 qm set "$ID" --description '
-## DietPi VM - Managed by Limehawk
+# DietPi VM - Managed by Limehawk
 
 **Quick Links:**
-- [DietPi Website](https://dietpi.com/)
-- [Documentation](https://dietpi.com/docs/)
-- [Community Forum](https://dietpi.com/forum/)
-- [Latest News](https://dietpi.com/blog/)
+- **[DietPi Website](https://dietpi.com/)**
+- **[Documentation](https://dietpi.com/docs/)**
+- **[Community Forum](https://dietpi.com/forum/)**
+- **[Latest News](https://dietpi.com/blog/)**
 
-**Provided by [Limehawk](https://limehawk.io):**
-- 🚀 _Fast and Reliable VM Solutions_
-- 🛡️ _Enhanced Security Features_
-- 📊 _Performance Optimized_
+## Features
+- Fast and Reliable VM Solutions
+- Enhanced Security Features
+- Performance Optimized
 
----
+## Configuration Details
+| Property | Value |
+|----------|-------|
+| Cores    | 2     |
+| Memory   | 2048MB |
+| Network  | virtio, bridge=vmbr0 |
+| Storage  | local-zfs |
 
-_This VM is powered by **Limehawk**. For more information and support, visit our [website](https://limehawk.io)._
+_**Note:** This VM is powered by **Limehawk**. For more information and support, visit our [website](https://limehawk.io)._ 
 ' >/dev/null
 
 # Tell user the virtual machine is created  
