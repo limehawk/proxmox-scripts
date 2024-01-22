@@ -17,8 +17,8 @@ ID=$(pvesh get /cluster/nextid)
 # Create the configuration file for the new VM
 touch "/etc/pve/qemu-server/$ID.conf"
 
-# Set disk parameter for the specified storage
-qm_disk_param="${STORAGE_LOCATION}:vm-$ID-disk-0"
+# Clean up any previous DietPi images
+find . -name 'DietPi_Proxmox*' -exec rm -f {} +
 
 # Download DietPi image
 wget "$IMAGE_URL"
@@ -32,19 +32,16 @@ sleep 3
 # Import the qcow2 file to the specified storage
 qm importdisk "$ID" "$IMAGE_NAME" "$STORAGE_LOCATION" || { echo "Error importing disk"; exit 1; }
 
+# Determine the correct disk name
+DISK_NAME=$(qm volume info "$STORAGE_LOCATION:vm-$ID-disk-0" | grep -oP 'images/\d+/vm-\d+-disk-\d+.raw')
+
 # Set VM settings
 qm set "$ID" --cores "$CORES" || { echo "Error setting cores"; exit 1; }
 qm set "$ID" --memory "$RAM" || { echo "Error setting memory"; exit 1; }
 qm set "$ID" --net0 'virtio,bridge=vmbr0' || { echo "Error setting net0"; exit 1; }
 
-# Ensure the correct disk is attached
-if ! qm config "$ID" | grep -q "$qm_disk_param"; then
-    echo "Disk $qm_disk_param not found for VM $ID."
-    exit 1
-fi
-
 # Attach the disk as SCSI device
-qm set "$ID" --scsi0 "$qm_disk_param" || { echo "Error attaching SCSI disk"; exit 1; }
+qm set "$ID" --scsi0 "$STORAGE_LOCATION:$DISK_NAME" || { echo "Error attaching SCSI disk"; exit 1; }
 qm set "$ID" --boot order=scsi0 || { echo "Error setting boot order"; exit 1; }
 qm set "$ID" --scsihw virtio-scsi-pci || { echo "Error setting SCSI hardware"; exit 1; }
 qm set "$ID" --name 'dietpi' >/dev/null
@@ -79,4 +76,3 @@ _**Note:** This VM is powered by **Limehawk**. For more information and support,
 echo "VM $ID Created."
 
 # Start the virtual machine
-qm start "$ID"
