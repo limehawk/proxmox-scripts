@@ -217,34 +217,31 @@ function checkos()
 
 function notify_prerequisites()
 {
-	local title="3CX SBC Pre-requisites"
-	local text="1. Port 5060 UDP on this computer must be free\n2. Requires 3CX PBX Version 16 or Version 18\n3. Update 3CX PBX before you install SBC"
-
-	whiptail --backtitle "$backtitle" --title "$title" --msgbox "$text" $height $width
+    echo "3CX SBC Pre-requisites:"
+    echo "1. Port 5060 UDP on this computer must be free"
+    echo "2. Requires 3CX PBX Version 16 or Version 18"
+    echo "3. Update 3CX PBX before you install SBC"
+    echo
 }
 
 function ask_license()
 {
-	local width=$(tput cols)
-	let "width = width * 9 / 10"
-	[ $width -gt 120 ] && width=120
-
-	local height=$(tput lines)
-	let "height = height * 9 / 10"
-
-	local title="End-User License Agreement"
-	local text="$(license)"
-	whiptail --backtitle "$backtitle" --title "$title" --yes-button Accept --no-button Decline --scrolltext --yesno "$text"	$height $width
+    echo "End-User License Agreement"
+    echo "$(license)"
+    echo
+    echo "Do you accept the license? (yes/no)"
+    read -r accept
+    [[ "$accept" == "yes" ]] || exit 1
 }
 
 function prompt_text()
 {
-	local var=$1
-	local text=$2
-	shift 2
-
-	eval "local tmp=\$$var"
-	{ tmp=$(whiptail --backtitle "$backtitle" "$@" --inputbox "$text" $height $width "$tmp" 2>&1 1>&3); } 3>&1 && eval "$var='$tmp'"
+    local var=$1
+    local text=$2
+    eval "local tmp=\$$var"
+    echo "$text"
+    read -r tmp
+    eval "$var='$tmp'"
 }
 
 function prompt_url()
@@ -263,14 +260,15 @@ function prompt_url()
 
 function notify_invalid()
 {
-	local text="'$2' doesn't seem to be a valid $1.\nDo you want to continue?"
-	whiptail --backtitle "$backtitle" --yes-button "Continue" --no-button "Back" --yesno "$text" --defaultno $height $width
+    echo "Warning: '$2' doesn't seem to be a valid $1."
+    echo "Do you want to continue? (yes/no)"
+    read -r choice
+    [[ "$choice" == "yes" ]] || return 1
 }
 
 function notify_insecure()
 {
-	local text="Insecure HTTP mode is not supported. Please, provide an HTTPS URL."
-	whiptail --backtitle "$backtitle" --ok-button "Back" --msgbox "$text" $height $width
+    echo "Insecure HTTP mode is not supported. Please, provide an HTTPS URL."
 }
 
 function prompt_key()
@@ -283,18 +281,17 @@ function prompt_key()
 
 function ask_cancel()
 {
-	local text="Are you sure to abort the installation?"
-	whiptail --backtitle "$backtitle" --yesno "$text" --yes-button Abort --no-button Continue --defaultno $height $width
+    echo "Are you sure to abort the installation? (yes/no)"
+    read -r choice
+    [[ "$choice" == "yes" ]] || exit 1
 }
 
 function ask_retry()
 {
-	local letters=$(wc -m <<< $1)
-	local lines=$(grep -o '\\n' <<< $1 | wc -l)
-	local height=$((letters * 11 / 10 / $width + $lines + 7))
-
-	local title="Cannot obtain provisional data"
-	whiptail --backtitle "$backtitle" --title "$title" --yes-button Retry --no-button Abort --yesno "$1" $height $width
+    echo "Error: $1"
+    echo "Do you want to retry? (yes/no)"
+    read -r choice
+    [[ "$choice" == "yes" ]] || exit 1
 }
 
 function notify_finish()
