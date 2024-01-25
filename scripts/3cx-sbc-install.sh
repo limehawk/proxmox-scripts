@@ -1,3 +1,5 @@
+# WARNING: DO NOT RUN THIS SCRIPT ON THE HOST. RUN INSIDE YOUR VM. 
+
 #!/bin/bash
 # Simplified SBC Install Script with Repository Check
 
