@@ -1,11 +1,33 @@
 #!/bin/bash
 
 # ========================================
+# Limehawk - DietPi VM Creation Script
+# Version 2
+# Company: Limehawk
+# Website: https://limehawk.io
+# ========================================
+
+# ========================================
 # Variables
 # ========================================
 
-# Prompt user for DietPi image URL with a default value
-IMAGE_URL=$(whiptail --inputbox 'Enter the URL for the DietPi image (default: https://dietpi.com/downloads/images/DietPi_Proxmox-x86_64-Bookworm.qcow2.xz):' 8 78 'https://dietpi.com/downloads/images/DietPi_Proxmox-x86_64-Bookworm.qcow2.xz' --title 'DietPi Installation' 3>&1 1>&2 2>&3)
+# Prompt user for OS version
+OS_VERSION=$(whiptail --title "Select DietPi OS Version" --menu "Choose an OS version" 15 60 4 \
+"1" "Bookworm" \
+"2" "Bullseye" 3>&1 1>&2 2>&3)
+
+case $OS_VERSION in
+    1)
+        IMAGE_URL="https://dietpi.com/downloads/images/DietPi_Proxmox-x86_64-Bookworm.qcow2.xz"
+        ;;
+    2)
+        IMAGE_URL="https://dietpi.com/downloads/images/DietPi_Proxmox-x86_64-Bullseye.qcow2.xz"
+        ;;
+    *)
+        echo "Invalid selection"
+        exit 1
+        ;;
+esac
 
 # Prompt user for the amount of RAM for the new VM with a default value
 RAM=$(whiptail --inputbox 'Enter the amount of RAM (in MB) for the new virtual machine (default: 2048):' 8 78 2048 --title 'DietPi Installation' 3>&1 1>&2 2>&3)
