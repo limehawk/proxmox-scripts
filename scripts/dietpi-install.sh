@@ -1,11 +1,8 @@
 #!/bin/bash
 
-# ========================================
-# Limehawk - DietPi VM Creation Script
-# Version 2
-# Company: Limehawk
-# Website: https://limehawk.io
-# ========================================
+# Version 2.4
+# This script automates the creation of a Proxmox VM and imports a DietPi image.
+# It includes cleanup steps to remove temporary files after the VM is created.
 
 # ========================================
 # Variables
@@ -13,8 +10,8 @@
 
 # Prompt user for OS version
 OS_VERSION=$(whiptail --title "Select DietPi OS Version" --menu "Choose an OS version" 15 60 4 \
-"1" "Bookworm Debian 12" \
-"2" "Bullseye Debian 11" 3>&1 1>&2 2>&3)
+"1" "Debian 12 Bookworm" \
+"2" "Debian 11 Bullseye" 3>&1 1>&2 2>&3)
 
 case $OS_VERSION in
     1)
@@ -80,11 +77,11 @@ fi
 # Download and Decompress DietPi Image
 # ========================================
 
-# Download the DietPi image from the provided URL
-wget "$IMAGE_URL"
+# Download the DietPi image from the provided URL to /tmp
+wget "$IMAGE_URL" -P /tmp/
 
-# Decompress the downloaded image using xz
-IMAGE_NAME=${IMAGE_URL##*/}
+# Decompress the downloaded image using xz in /tmp
+IMAGE_NAME="/tmp/${IMAGE_URL##*/}"
 xz -d "$IMAGE_NAME"
 IMAGE_NAME=${IMAGE_NAME%.xz}
 sleep 3
@@ -120,3 +117,10 @@ echo "VM $ID Created."
 
 # Start the newly created VM
 qm start "$ID"
+
+# ========================================
+# Cleanup
+# ========================================
+
+# Remove the downloaded and decompressed image files from /tmp
+rm -f /tmp/DietPi_Proxmox*
