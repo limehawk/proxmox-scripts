@@ -5,10 +5,10 @@ set -e
 echo "Starting Proxmox VE Update: $(date)"
 
 # Update package lists using Proxmox wrapper
-/usr/bin/pveupdate
+pveupdate
 
 # Full upgrade using Proxmox wrapper
-/usr/bin/pveupgrade --shell -y
+pveupgrade --shell -y
 
 # Check if a reboot is required
 if [ -f /var/run/reboot-required ]; then
