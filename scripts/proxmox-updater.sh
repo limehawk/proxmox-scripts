@@ -8,7 +8,7 @@ echo "Starting Proxmox VE Update: $(date)"
 /usr/bin/pveupdate
 
 # Full upgrade using Proxmox wrapper
-/usr/bin/pveupgrade -y
+/usr/bin/pveupgrade -y --shell
 
 # Check if a reboot is required
 if [ -f /var/run/reboot-required ]; then
