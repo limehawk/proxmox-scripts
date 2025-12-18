@@ -1,0 +1,3 @@
+[submodule "dietpi"]
+	path = dietpi
+	url = https://github.com/limehawk/proxmox-dietpi-installer.git
