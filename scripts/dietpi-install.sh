@@ -1,126 +1,191 @@
 #!/bin/bash
 
-# Version 2.4
-# This script automates the creation of a Proxmox VM and imports a DietPi image.
-# It includes cleanup steps to remove temporary files after the VM is created.
+# Cleanup function
+cleanup() {
+    echo "Cleaning up..."
+    # Remove any downloaded files
+    rm -f DietPi_*
+    # Remove any temporary files
+    rm -f /tmp/dietpi_*
+    echo "Cleanup complete. Exiting."
+    exit 1
+}
 
-# ========================================
-# Variables
-# ========================================
+# Trap Ctrl+C and other interrupts
+trap cleanup INT TERM
 
-# Prompt user for OS version
-OS_VERSION=$(whiptail --title "Select DietPi OS Version" --menu "Choose an OS version" 15 60 4 \
-"1" "Debian 12 Bookworm" \
-"2" "Debian 11 Bullseye" 3>&1 1>&2 2>&3)
+# Select DietPi OS Version
+while true; do
+    OS_VERSION=$(whiptail --title "DietPi Installation" --menu "Select DietPi image:" 22 65 13 \
+        "."               "───────── Debian 13 Trixie ─────────" \
+        "trixie"          "Standard (Recommended)" \
+        "trixie-uefi"     "UEFI Boot" \
+        ".."              "───────── Debian 12 Bookworm ───────" \
+        "bookworm"        "Standard" \
+        "bookworm-uefi"   "UEFI Boot" \
+        "..."             "───────── Debian 14 Forky ──────────" \
+        "forky"           "Standard (Testing)" \
+        "forky-uefi"      "UEFI Boot (Testing)" \
+        "...."            "─────────────────────────────────────" \
+        "custom"          "Custom URL" 3>&1 1>&2 2>&3)
 
+    # Check if user cancelled
+    if [ $? -ne 0 ]; then
+        cleanup
+    fi
+
+    # If separator selected, show menu again
+    case "$OS_VERSION" in
+        .|..|...|....) continue ;;
+        *) break ;;
+    esac
+done
+
+# Set IMAGE_URL based on selection
+BASE_URL="https://dietpi.com/downloads/images"
 case $OS_VERSION in
-    1)
-        IMAGE_URL="https://dietpi.com/downloads/images/DietPi_Proxmox-x86_64-Bookworm.qcow2.xz"
+    trixie)
+        IMAGE_URL="$BASE_URL/DietPi_Proxmox-x86_64-Trixie.qcow2.xz"
         ;;
-    2)
-        IMAGE_URL="https://dietpi.com/downloads/images/DietPi_Proxmox-x86_64-Bullseye.qcow2.xz"
+    trixie-uefi)
+        IMAGE_URL="$BASE_URL/DietPi_Proxmox-UEFI-x86_64-Trixie.qcow2.xz"
+        ;;
+    bookworm)
+        IMAGE_URL="$BASE_URL/DietPi_Proxmox-x86_64-Bookworm.qcow2.xz"
+        ;;
+    bookworm-uefi)
+        IMAGE_URL="$BASE_URL/DietPi_Proxmox-UEFI-x86_64-Bookworm.qcow2.xz"
+        ;;
+    forky)
+        IMAGE_URL="$BASE_URL/DietPi_Proxmox-x86_64-Forky.qcow2.xz"
+        ;;
+    forky-uefi)
+        IMAGE_URL="$BASE_URL/DietPi_Proxmox-UEFI-x86_64-Forky.qcow2.xz"
+        ;;
+    custom)
+        IMAGE_URL=$(whiptail --inputbox 'Enter the URL for the DietPi image:' 8 78 "$BASE_URL/DietPi_Proxmox-x86_64-Trixie.qcow2.xz" --title 'DietPi Installation' 3>&1 1>&2 2>&3)
+        if [ $? -ne 0 ]; then
+            cleanup
+        fi
         ;;
     *)
         echo "Invalid selection"
-        exit 1
+        cleanup
         ;;
 esac
 
-# Prompt user for the amount of RAM for the new VM with a default value
 RAM=$(whiptail --inputbox 'Enter the amount of RAM (in MB) for the new virtual machine (default: 2048):' 8 78 2048 --title 'DietPi Installation' 3>&1 1>&2 2>&3)
 
-# Prompt user for the number of cores for the new VM with a default value
+# Check if user cancelled
+if [ $? -ne 0 ]; then
+    cleanup
+fi
+
 CORES=$(whiptail --inputbox 'Enter the number of cores for the new virtual machine (default: 2):' 8 78 2 --title 'DietPi Installation' 3>&1 1>&2 2>&3)
 
-# ========================================
+# Check if user cancelled
+if [ $? -ne 0 ]; then
+    cleanup
+fi
+
 # Install xz-utils if missing
-# ========================================
+dpkg-query -s xz-utils &> /dev/null || { echo 'Installing xz-utils for DietPi image decompression'; apt-get update; apt-get -y install xz-utils; }
 
-# Check if xz-utils is installed; if not, install it
-dpkg-query -s xz-utils &> /dev/null || { 
-    echo 'Installing xz-utils for DietPi image decompression'; 
-    apt-get update; 
-    apt-get -y install xz-utils; 
-}
-
-# ========================================
-# Get next available VMID
-# ========================================
-
-# Get the next available VMID from Proxmox
+# Get the next available VMID
 ID=$(pvesh get /cluster/nextid)
 
-touch "/etc/pve/qemu-server/$ID.conf"
+# Create VM config file
+if ! touch "/etc/pve/qemu-server/$ID.conf"; then
+    echo "Error: Could not create VM configuration file"
+    cleanup
+fi
 
-# ========================================
-# Prompt user for storage and filesystem
-# ========================================
-
-# Prompt user for the storage name where the image should be imported
+# Get the storage name from the user
 STORAGE=$(whiptail --inputbox 'Enter the storage name where the image should be imported:' 8 78 --title 'DietPi Installation' 3>&1 1>&2 2>&3)
 
-# Ask user about the filesystem type: BTRFS, ZFS, Directory, or LVM-Thin Provisioning
-if (whiptail --title "What filesystem are you installing the VM on?" --yesno "If using BTRFS, ZFS or Directory storage? Select YES\n\nIf using LVM-Thin Provisioning? Select NO" 10 78); then
-    use_btrfs="y"
-else
-    use_btrfs="n"
+# Check if user cancelled or if storage is empty
+if [ $? -ne 0 ] || [ -z "$STORAGE" ]; then
+    echo "Storage selection cancelled or empty. Aborting."
+    cleanup
 fi
 
-# Set the disk parameter based on the filesystem type
-if [ "$use_btrfs" = "y" ]; then
-    qm_disk_param="$STORAGE:$ID/vm-$ID-disk-0.raw"
-else
-    qm_disk_param="$STORAGE:vm-$ID-disk-0"
+# Create temporary directory for downloads
+TEMP_DIR=$(mktemp -d)
+cd "$TEMP_DIR" || cleanup
+
+# Download DietPi image
+if ! wget "$IMAGE_URL"; then
+    echo "Error: Failed to download image"
+    cleanup
 fi
 
-# ========================================
-# Download and Decompress DietPi Image
-# ========================================
+# Decompress the image
+IMAGE_NAME=${IMAGE_URL##*/}
+if ! xz -d "$IMAGE_NAME"; then
+    echo "Error: Failed to decompress image"
+    cleanup
+fi
 
-# Download the DietPi image from the provided URL to /tmp
-wget "$IMAGE_URL" -P /tmp/
-
-# Decompress the downloaded image using xz in /tmp
-IMAGE_NAME="/tmp/${IMAGE_URL##*/}"
-xz -d "$IMAGE_NAME"
 IMAGE_NAME=${IMAGE_NAME%.xz}
-sleep 3
 
-# ========================================
-# Import Disk and Configure VM
-# ========================================
+# Import the qcow2 file to the specified storage
+echo "Importing disk image to storage..."
+if ! qm importdisk "$ID" "$IMAGE_NAME" "$STORAGE"; then
+    echo "Error: Failed to import disk"
+    cleanup
+fi
 
-# Import the decompressed qcow2 file to the specified storage
-qm importdisk "$ID" "$IMAGE_NAME" "$STORAGE"
+# Retrieve the disk path
+DISK_PATH=$(qm config "$ID" | awk '/unused0/{print $2;exit}')
+if [[ ! $DISK_PATH ]]; then
+    echo "Error: Failed to get disk path"
+    cleanup
+fi
 
-# Attach the imported disk to the VM with the correct bus/device type
-qm set "$ID" --scsihw virtio-scsi-pci # Ensuring SCSI hardware is set
-qm set "$ID" --scsi0 "$STORAGE:vm-$ID-disk-0"  # Correct disk path for attachment
+echo "Disk path: $DISK_PATH"
 
 # Set VM settings
-qm set "$ID" --cores "$CORES"
-qm set "$ID" --memory "$RAM"
-qm set "$ID" --net0 'virtio,bridge=vmbr0'
-qm set "$ID" --boot order='scsi0'
+qm set "$ID" --cores "$CORES" || cleanup
+qm set "$ID" --memory "$RAM" || cleanup
+qm set "$ID" --scsihw virtio-scsi-pci || cleanup
+qm set "$ID" --net0 'virtio,bridge=vmbr0' || cleanup
+qm set "$ID" --scsi0 "$DISK_PATH,discard=on,ssd=1" || cleanup
+qm set "$ID" --ostype l26 || cleanup
+
+# Verify disk setup and set boot order
+if qm config "$ID" | grep -q "scsi0"; then
+    qm set "$ID" --boot order='scsi0'
+else
+    echo "Error: Failed to set the disk for VM $ID"
+    cleanup
+fi
+
+# Set VM name
 qm set "$ID" --name 'dietpi' >/dev/null
-qm set "$ID" --description '### [DietPi Website](https://dietpi.com/)
-### [DietPi Docs](https://dietpi.com/docs/)
-### [DietPi Forum](https://dietpi.com/forum/)
-### [DietPi Blog](https://dietpi.com/blog/)' >/dev/null
 
-# ========================================
-# Finalize and Start VM
-# ========================================
+# Set description
+DESCRIPTION='
+<p align="center">
+<img src="https://dietpi.com/images/dietpi-logo_128x128.png" alt="DietPi Logo" width="40">
+<br>
+<strong>DietPi VM</strong>
+<br>
+<a href="https://dietpi.com/">Website</a> &bull; 
+<a href="https://dietpi.com/docs/">Documentation</a> &bull; 
+<a href="https://dietpi.com/forum/">Forum</a>
+<br>
+<a href="https://dietpi.com/blog/">Blog</a> &bull; 
+<a href="https://github.com/MichaIng/DietPi">GitHub</a>
+</p>
+'
 
-# Notify the user that the VM has been created
-echo "VM $ID Created."
+qm set "$ID" --description "$DESCRIPTION" >/dev/null
 
-# Start the newly created VM
+# Clean up temporary files
+cd - || cleanup
+rm -rf "$TEMP_DIR"
+
+echo "VM $ID Created successfully."
+
+# Start the virtual machine
 qm start "$ID"
-
-# ========================================
-# Cleanup
-# ========================================
-
-# Remove the downloaded and decompressed image files from /tmp
-rm -f /tmp/DietPi_Proxmox*
