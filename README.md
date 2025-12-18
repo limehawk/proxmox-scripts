@@ -10,11 +10,22 @@ bash <(curl -sSfL https://raw.githubusercontent.com/limehawk/proxmox-scripts/mai
 ```
 Interactive menu with all available DietPi images (Trixie, Bookworm, Forky + UEFI variants).
 
-### 3CX SBC Installer
+### 3CX SBC VM Provisioner
 ```sh
-bash <(curl -sSfL https://raw.githubusercontent.com/limehawk/proxmox-scripts/main/scripts/3cx-sbc-install.sh)
+bash <(curl -sSfL https://raw.githubusercontent.com/limehawk/proxmox-scripts/main/scripts/3cx-sbc-vm.sh)
 ```
-> **Note:** Run inside your VM, not on the Proxmox host. Requires Debian 12+.
+Creates a VM for 3CX Session Border Controller with three methods:
+- **Official ISO** - Downloads 3CX Debian ISO, manual setup
+- **Automated** - Debian cloud image with auto-install via cloud-init
+- **DietPi** - Use DietPi as base, install 3CX manually
+
+### 3CX SBC Manager (In-VM)
+```sh
+bash <(curl -sSfL https://raw.githubusercontent.com/limehawk/proxmox-scripts/main/scripts/3cx-sbc.sh)
+```
+> **Note:** Run inside your VM, not on the Proxmox host.
+
+Install or upgrade 3CX SBC on existing Debian 12 systems.
 
 ### Proxmox Updater
 ```sh
