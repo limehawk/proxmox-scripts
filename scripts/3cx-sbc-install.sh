@@ -1,54 +1,83 @@
-# WARNING: DO NOT RUN THIS SCRIPT ON THE HOST. RUN INSIDE YOUR VM. 
-
 #!/bin/bash
-# Simplified SBC Install Script with Repository Check
+# 3CX SBC Installer for Debian 12 Bookworm
+# WARNING: Run this INSIDE your VM, not on the Proxmox host!
+
+set -e
 
 tred=$(tput setaf 1)
 tgreen=$(tput setaf 2)
+tyellow=$(tput setaf 3)
 tdef=$(tput sgr0)
 
-# Function to display an error and exit
 function fail() {
-    echo -e "${tred}error: $1$tdef" >&2
+    echo -e "${tred}Error: $1${tdef}" >&2
     exit 1
 }
 
-# Function to prompt for user input
-function prompt() {
-    read -p "$1" response
-    echo $response
+function warn() {
+    echo -e "${tyellow}Warning: $1${tdef}"
 }
 
-# Function to check and add repository if not present
-function check_and_add_repo() {
-    local repo_url="http://downloads-global.3cx.com/downloads/debian"
-    grep -q "$repo_url" /etc/apt/sources.list /etc/apt/sources.list.d/* || {
-        echo "Adding 3CX repository"
-        echo "deb $repo_url stable main" > /etc/apt/sources.list.d/3cxpbx.list
-        wget -qO - "$repo_url/public.key" | apt-key add -
-    }
+function success() {
+    echo -e "${tgreen}$1${tdef}"
 }
 
-# Function to install SBC
-function install_sbc() {
-    apt-get update && apt-get -y install 3cxsbc || fail "Installation of 3cxsbc package failed"
-    systemctl restart 3cxsbc
-    systemctl is-active --quiet 3cxsbc || fail "3CXSBC service failed to start"
-    echo "${tgreen}3CXSBC is installed and running.$tdef"
-}
+# Check if running as root
+[[ $EUID -eq 0 ]] || fail "This script must be run as root"
 
-# Ask for Provisioning URL
-pbx_url=$(prompt "Enter the Provisioning URL: ")
-[[ "$pbx_url" =~ ^https:\/\/ ]] || fail "Invalid URL. Must start with https://"
+# Check Debian version
+if [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    if [[ "$ID" != "debian" ]]; then
+        fail "This script requires Debian. Detected: $ID"
+    fi
+    if [[ "$VERSION_ID" -lt 12 ]]; then
+        fail "3CX SBC requires Debian 12 (Bookworm) or later. Detected: Debian $VERSION_ID"
+    fi
+else
+    fail "Cannot detect OS version"
+fi
 
-# Ask for SBC Authentication KEY ID
-pbx_key=$(prompt "Enter the SBC Authentication KEY ID: ")
-[ -z "$pbx_key" ] && fail "SBC Authentication KEY ID is required"
+echo "Detected: Debian $VERSION_ID ($VERSION_CODENAME)"
 
-# Check and add repository
-check_and_add_repo
+# Check and add 3CX repository (modern method without apt-key)
+REPO_URL="http://downloads-global.3cx.com/downloads/debian"
+KEYRING_PATH="/usr/share/keyrings/3cx-archive-keyring.gpg"
+SOURCES_PATH="/etc/apt/sources.list.d/3cxpbx.list"
 
-# Installation
-install_sbc
+if [[ ! -f "$SOURCES_PATH" ]]; then
+    echo "Adding 3CX repository..."
 
-echo "Installation complete. Access the configuration at /etc/3cxsbc.conf"
+    # Download and add GPG key (modern method)
+    wget -qO - "$REPO_URL/public.key" | gpg --dearmor -o "$KEYRING_PATH"
+
+    # Add repository with signed-by
+    echo "deb [signed-by=$KEYRING_PATH] $REPO_URL stable main" > "$SOURCES_PATH"
+
+    success "3CX repository added"
+else
+    echo "3CX repository already configured"
+fi
+
+# Update and install
+echo "Updating package lists..."
+apt-get update
+
+echo "Installing 3CX SBC..."
+apt-get -y install 3cxsbc || fail "Installation of 3cxsbc package failed"
+
+# Start service
+systemctl restart 3cxsbc
+sleep 3
+
+if systemctl is-active --quiet 3cxsbc; then
+    success "3CX SBC installed and running!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Get your Provisioning URL and Auth Key from 3CX Management Console"
+    echo "  2. Configure at: /etc/3cxsbc.conf"
+    echo "  3. Or use: 3cxsbc --config"
+    echo ""
+else
+    fail "3CX SBC service failed to start"
+fi
