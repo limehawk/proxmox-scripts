@@ -1,0 +1,35 @@
+name: Sync dietpi-install.sh
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6 AM UTC
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch dietpi-install.sh from source
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/limehawk/proxmox-dietpi-installer/main/dietpi-install.sh -o scripts/dietpi-install.sh
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet scripts/dietpi-install.sh; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add scripts/dietpi-install.sh
+          git commit -m "Sync dietpi-install.sh from limehawk/proxmox-dietpi-installer"
+          git push
