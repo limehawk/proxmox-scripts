@@ -40,19 +40,18 @@ fi
 
 echo "Detected: Debian $VERSION_ID ($VERSION_CODENAME)"
 
-# Check and add 3CX repository (modern method without apt-key)
-REPO_URL="http://downloads-global.3cx.com/downloads/debian"
+# Check and add 3CX repository (modern method)
 KEYRING_PATH="/usr/share/keyrings/3cx-archive-keyring.gpg"
 SOURCES_PATH="/etc/apt/sources.list.d/3cxpbx.list"
 
 if [[ ! -f "$SOURCES_PATH" ]]; then
     echo "Adding 3CX repository..."
 
-    # Download and add GPG key (modern method)
-    wget -qO - "$REPO_URL/public.key" | gpg --dearmor -o "$KEYRING_PATH"
+    # Download and add GPG key (current 3CX method)
+    wget -qO- https://repo.3cx.com/key.pub | gpg --dearmor | tee "$KEYRING_PATH" > /dev/null
 
     # Add repository with signed-by
-    echo "deb [signed-by=$KEYRING_PATH] $REPO_URL stable main" > "$SOURCES_PATH"
+    echo "deb [arch=amd64 by-hash=yes signed-by=$KEYRING_PATH] http://repo.3cx.com/3cx bookworm main" > "$SOURCES_PATH"
 
     success "3CX repository added"
 else
